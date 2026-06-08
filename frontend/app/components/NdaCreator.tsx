@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo, Fragment } from "react";
 
 interface Party {
   name: string;
@@ -135,7 +135,7 @@ Common Paper Mutual Non-Disclosure Agreement [Version 1.0](https://commonpaper.c
 
 const defaultData: NdaFormData = {
   purpose: "Evaluating whether to enter into a business relationship with the other party.",
-  effectiveDate: today(),
+  effectiveDate: "",
   mndaTermType: "expires",
   mndaTermYears: "1",
   confidentialityTermType: "years",
@@ -293,6 +293,12 @@ function TableRow({ line }: { line: string }) {
   );
 }
 
+function buildFilename(data: NdaFormData, ext: string): string {
+  const p1 = data.party1.company || data.party1.name || "Party1";
+  const p2 = data.party2.company || data.party2.name || "Party2";
+  return `MNDA_${p1}_${p2}_${data.effectiveDate || today()}.${ext}`.replace(/\s+/g, "_");
+}
+
 function renderInline(text: string): React.ReactNode {
   if (!text.includes("**") && !text.includes("[")) return text;
   const parts = text.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\))/g);
@@ -304,12 +310,12 @@ function renderInline(text: string): React.ReactNode {
     if (linkMatch) {
       return <span key={i} className="text-blue-600 underline">{linkMatch[1]}</span>;
     }
-    return part;
+    return <Fragment key={i}>{part}</Fragment>;
   });
 }
 
 export default function NdaCreator() {
-  const [data, setData] = useState<NdaFormData>(defaultData);
+  const [data, setData] = useState<NdaFormData>(() => ({ ...defaultData, effectiveDate: today() }));
   const [copied, setCopied] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -327,12 +333,19 @@ export default function NdaCreator() {
     []
   );
 
-  const fullDocument = generateCoverPage(data) + "\n\n" + STANDARD_TERMS;
+  const fullDocument = useMemo(
+    () => generateCoverPage(data) + "\n\n" + STANDARD_TERMS,
+    [data]
+  );
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(fullDocument);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(fullDocument);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard write failed (e.g. permission denied)
+    }
   };
 
   const handleDownloadPdf = async () => {
@@ -353,7 +366,6 @@ export default function NdaCreator() {
         windowHeight: element.scrollHeight,
       });
 
-      const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const pageW = pdf.internal.pageSize.getWidth();
       const pageH = pdf.internal.pageSize.getHeight();
@@ -377,9 +389,7 @@ export default function NdaCreator() {
         if (remaining > 0) pdf.addPage();
       }
 
-      const party1Name = data.party1.company || data.party1.name || "Party1";
-      const party2Name = data.party2.company || data.party2.name || "Party2";
-      pdf.save(`MNDA_${party1Name}_${party2Name}_${data.effectiveDate || today()}.pdf`.replace(/\s+/g, "_"));
+      pdf.save(buildFilename(data, "pdf"));
     } finally {
       setPdfLoading(false);
     }
@@ -389,10 +399,8 @@ export default function NdaCreator() {
     const blob = new Blob([fullDocument], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    const party1Name = data.party1.company || data.party1.name || "Party1";
-    const party2Name = data.party2.company || data.party2.name || "Party2";
     a.href = url;
-    a.download = `MNDA_${party1Name}_${party2Name}_${data.effectiveDate || today()}.md`.replace(/\s+/g, "_");
+    a.download = buildFilename(data, "md");
     a.click();
     URL.revokeObjectURL(url);
   };
