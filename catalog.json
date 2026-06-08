@@ -1,0 +1,66 @@
+{
+  "source": "CommonPaper (https://commonpaper.com)",
+  "license": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
+  "templates": [
+    {
+      "name": "Mutual Non-Disclosure Agreement",
+      "description": "Standard mutual NDA created by a committee of 40+ attorneys. Covers confidentiality obligations, exclusions, term, and remedies for both parties sharing confidential information.",
+      "filename": "templates/Mutual-NDA.md"
+    },
+    {
+      "name": "Mutual NDA Cover Page",
+      "description": "Cover page for the Mutual NDA containing deal-specific terms (party names, governing law, term, etc.) that incorporates the standard Mutual NDA terms by reference.",
+      "filename": "templates/Mutual-NDA-coverpage.md"
+    },
+    {
+      "name": "Cloud Service Agreement",
+      "description": "Standard B2B SaaS subscription contract covering access rights, fees, data handling, warranties, liability limits, and termination for cloud-hosted software services.",
+      "filename": "templates/CSA.md"
+    },
+    {
+      "name": "Service Level Agreement",
+      "description": "Standard SLA addendum defining uptime commitments, measurement methodology, service credits for downtime, and exclusions for cloud services.",
+      "filename": "templates/sla.md"
+    },
+    {
+      "name": "Data Processing Agreement",
+      "description": "GDPR and CCPA-compliant DPA covering processor/controller obligations, permitted purposes, subprocessor management, data subject rights, security measures, and breach notification.",
+      "filename": "templates/DPA.md"
+    },
+    {
+      "name": "Business Associate Agreement",
+      "description": "HIPAA-compliant BAA for covered entities and business associates handling protected health information (PHI), covering permitted uses, safeguards, and breach reporting.",
+      "filename": "templates/BAA.md"
+    },
+    {
+      "name": "Software License Agreement",
+      "description": "Standard perpetual or term license agreement for on-premise or downloadable software, covering license scope, restrictions, support obligations, and IP ownership.",
+      "filename": "templates/Software-License-Agreement.md"
+    },
+    {
+      "name": "Professional Services Agreement",
+      "description": "Standard consulting and professional services contract covering SOW incorporation, deliverables, IP ownership, payment terms, confidentiality, and limitation of liability.",
+      "filename": "templates/psa.md"
+    },
+    {
+      "name": "Partnership Agreement",
+      "description": "Standard agreement for technology channel partnerships, reseller arrangements, or referral programs covering appointment, obligations, fees, and term.",
+      "filename": "templates/Partnership-Agreement.md"
+    },
+    {
+      "name": "Design Partner Agreement",
+      "description": "Standard agreement for early-access design partner programs where customers receive pre-release product access in exchange for structured feedback.",
+      "filename": "templates/design-partner-agreement.md"
+    },
+    {
+      "name": "AI Addendum",
+      "description": "Standard addendum for AI/ML product use cases addressing training data restrictions, model output disclaimers, acceptable use policies, and AI-specific liability.",
+      "filename": "templates/AI-Addendum.md"
+    },
+    {
+      "name": "Pilot Agreement",
+      "description": "Standard time-limited pilot or proof-of-concept agreement covering scope, duration, fees (if any), evaluation criteria, and conversion terms to a full agreement.",
+      "filename": "templates/Pilot-Agreement.md"
+    }
+  ]
+}
