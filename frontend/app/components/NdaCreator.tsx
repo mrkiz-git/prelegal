@@ -400,14 +400,14 @@ export default function NdaCreator() {
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Form panel */}
-      <div className="w-[420px] flex-shrink-0 overflow-y-auto bg-white border-r border-gray-200 flex flex-col">
-        <div className="px-6 py-5 border-b border-gray-200 bg-white sticky top-0 z-10">
+      <div className="w-[420px] flex-shrink-0 bg-white border-r border-gray-200 flex flex-col">
+        <div className="px-6 py-5 border-b border-gray-200 flex-shrink-0">
           <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-0.5">KAN-3</p>
           <h1 className="text-lg font-bold text-gray-900">Mutual NDA Creator</h1>
           <p className="text-xs text-gray-500 mt-0.5">Fill in the cover page to generate your MNDA</p>
         </div>
 
-        <div className="px-6 pb-8 space-y-0">
+        <div className="flex-1 overflow-y-auto px-6 pb-8">
           <SectionHeading>Agreement Details</SectionHeading>
 
           <div className="space-y-4">
