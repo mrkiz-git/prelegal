@@ -318,6 +318,7 @@ export default function NdaCreator() {
   const [data, setData] = useState<NdaFormData>(() => ({ ...defaultData, effectiveDate: today() }));
   const [copied, setCopied] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
 
   const updateField = useCallback(
@@ -368,6 +369,26 @@ export default function NdaCreator() {
         backgroundColor: "#ffffff",
         windowWidth: element.scrollWidth,
         windowHeight: element.scrollHeight,
+        onclone: (clonedDoc: Document) => {
+          // html2canvas 1.4.x cannot parse oklch()/lab() colors from Tailwind v4.
+          // Inject hex equivalents for every color class used in the preview.
+          const s = clonedDoc.createElement("style");
+          s.textContent = `
+            .text-gray-900{color:#111827!important}
+            .text-gray-800{color:#1f2937!important}
+            .text-gray-700{color:#374151!important}
+            .text-gray-600{color:#4b5563!important}
+            .text-gray-500{color:#6b7280!important}
+            .text-gray-400{color:#9ca3af!important}
+            .text-blue-600{color:#2563eb!important}
+            .border-gray-300{border-color:#d1d5db!important}
+            .border-gray-200{border-color:#e5e7eb!important}
+            .bg-white{background-color:#ffffff!important}
+            .shadow-sm{box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)!important}
+            .rounded-lg{border-radius:0.5rem!important}
+          `;
+          clonedDoc.head.appendChild(s);
+        },
       });
 
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -394,6 +415,10 @@ export default function NdaCreator() {
       }
 
       pdf.save(buildFilename(data, "pdf"));
+      setPdfError(false);
+    } catch {
+      setPdfError(true);
+      setTimeout(() => setPdfError(false), 4000);
     } finally {
       setPdfLoading(false);
     }
@@ -590,7 +615,7 @@ export default function NdaCreator() {
             <button
               onClick={handleDownloadPdf}
               disabled={pdfLoading}
-              className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${pdfError ? "border-red-300 bg-red-50 text-red-700" : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"}`}
             >
               {pdfLoading ? (
                 <>
@@ -599,6 +624,13 @@ export default function NdaCreator() {
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                   </svg>
                   Generating…
+                </>
+              ) : pdfError ? (
+                <>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                  </svg>
+                  PDF failed — try .md
                 </>
               ) : (
                 <>
