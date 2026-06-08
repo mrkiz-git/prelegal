@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 
 interface Party {
   name: string;
@@ -311,6 +311,8 @@ function renderInline(text: string): React.ReactNode {
 export default function NdaCreator() {
   const [data, setData] = useState<NdaFormData>(defaultData);
   const [copied, setCopied] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
 
   const updateField = useCallback(
     <K extends keyof NdaFormData>(field: K) =>
@@ -331,6 +333,56 @@ export default function NdaCreator() {
     await navigator.clipboard.writeText(fullDocument);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!previewRef.current) return;
+    setPdfLoading(true);
+    try {
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf"),
+      ]);
+
+      const element = previewRef.current;
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight,
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const usableW = pageW - margin * 2;
+      const imgH = (canvas.height * usableW) / canvas.width;
+
+      let remaining = imgH;
+      let srcY = 0;
+
+      while (remaining > 0) {
+        const sliceH = Math.min(remaining, pageH - margin * 2);
+        const sliceCanvas = document.createElement("canvas");
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = (sliceH / usableW) * canvas.width;
+        const ctx = sliceCanvas.getContext("2d")!;
+        ctx.drawImage(canvas, 0, srcY * (canvas.width / usableW), canvas.width, sliceCanvas.height, 0, 0, sliceCanvas.width, sliceCanvas.height);
+        pdf.addImage(sliceCanvas.toDataURL("image/png"), "PNG", margin, margin, usableW, sliceH);
+        remaining -= sliceH;
+        srcY += sliceH;
+        if (remaining > 0) pdf.addPage();
+      }
+
+      const party1Name = data.party1.company || data.party1.name || "Party1";
+      const party2Name = data.party2.company || data.party2.name || "Party2";
+      pdf.save(`MNDA_${party1Name}_${party2Name}_${data.effectiveDate || today()}.pdf`.replace(/\s+/g, "_"));
+    } finally {
+      setPdfLoading(false);
+    }
   };
 
   const handleDownload = () => {
@@ -510,6 +562,28 @@ export default function NdaCreator() {
               )}
             </button>
             <button
+              onClick={handleDownloadPdf}
+              disabled={pdfLoading}
+              className="flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {pdfLoading ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin text-gray-400" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                  Generating…
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  Download PDF
+                </>
+              )}
+            </button>
+            <button
               onClick={handleDownload}
               className="flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
             >
@@ -522,7 +596,7 @@ export default function NdaCreator() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-8">
-          <div className="max-w-2xl mx-auto bg-white rounded-lg border border-gray-200 shadow-sm p-8">
+          <div ref={previewRef} className="max-w-2xl mx-auto bg-white rounded-lg border border-gray-200 shadow-sm p-8">
             <DocumentPreview content={fullDocument} />
           </div>
         </div>
