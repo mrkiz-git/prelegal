@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useMemo, Fragment } from "react";
+import { useState, useCallback, useMemo, Fragment } from "react";
 
 interface Party {
   name: string;
@@ -319,7 +319,6 @@ export default function NdaCreator() {
   const [copied, setCopied] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState(false);
-  const previewRef = useRef<HTMLDivElement>(null);
 
   const updateField = useCallback(
     <K extends keyof NdaFormData>(field: K) =>
@@ -354,67 +353,89 @@ export default function NdaCreator() {
   };
 
   const handleDownloadPdf = async () => {
-    if (!previewRef.current) return;
     setPdfLoading(true);
     try {
-      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
-        import("html2canvas"),
-        import("jspdf"),
-      ]);
+      const { default: jsPDF } = await import("jspdf");
 
-      const element = previewRef.current;
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        windowWidth: element.scrollWidth,
-        windowHeight: element.scrollHeight,
-        onclone: (clonedDoc: Document) => {
-          // html2canvas 1.4.x cannot parse oklch()/lab() colors from Tailwind v4.
-          // Inject hex equivalents for every color class used in the preview.
-          const s = clonedDoc.createElement("style");
-          s.textContent = `
-            .text-gray-900{color:#111827!important}
-            .text-gray-800{color:#1f2937!important}
-            .text-gray-700{color:#374151!important}
-            .text-gray-600{color:#4b5563!important}
-            .text-gray-500{color:#6b7280!important}
-            .text-gray-400{color:#9ca3af!important}
-            .text-blue-600{color:#2563eb!important}
-            .border-gray-300{border-color:#d1d5db!important}
-            .border-gray-200{border-color:#e5e7eb!important}
-            .bg-white{background-color:#ffffff!important}
-            .shadow-sm{box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)!important}
-            .rounded-lg{border-radius:0.5rem!important}
-          `;
-          clonedDoc.head.appendChild(s);
-        },
-      });
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const W = doc.internal.pageSize.getWidth();
+      const H = doc.internal.pageSize.getHeight();
+      const mx = 20;
+      const my = 22;
+      const usableW = W - mx * 2;
+      let y = my;
 
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const pageW = pdf.internal.pageSize.getWidth();
-      const pageH = pdf.internal.pageSize.getHeight();
-      const margin = 10;
-      const usableW = pageW - margin * 2;
-      const imgH = (canvas.height * usableW) / canvas.width;
+      const lh = (pt: number) => pt * 0.3528 * 1.45;
 
-      let remaining = imgH;
-      let srcY = 0;
+      const newPage = () => { doc.addPage(); y = my; };
+      const guard = (needed: number) => { if (y + needed > H - my) newPage(); };
 
-      while (remaining > 0) {
-        const sliceH = Math.min(remaining, pageH - margin * 2);
-        const sliceCanvas = document.createElement("canvas");
-        sliceCanvas.width = canvas.width;
-        sliceCanvas.height = (sliceH / usableW) * canvas.width;
-        const ctx = sliceCanvas.getContext("2d")!;
-        ctx.drawImage(canvas, 0, srcY * (canvas.width / usableW), canvas.width, sliceCanvas.height, 0, 0, sliceCanvas.width, sliceCanvas.height);
-        pdf.addImage(sliceCanvas.toDataURL("image/png"), "PNG", margin, margin, usableW, sliceH);
-        remaining -= sliceH;
-        srcY += sliceH;
-        if (remaining > 0) pdf.addPage();
+      const write = (
+        text: string,
+        pt: number,
+        style: "normal" | "bold" | "italic",
+        rgb: [number, number, number] = [0, 0, 0],
+      ) => {
+        doc.setFontSize(pt);
+        doc.setFont("helvetica", style);
+        doc.setTextColor(...rgb);
+        const plain = text.replace(/\*\*([^*]+)\*\*/g, "$1");
+        const lines = doc.splitTextToSize(plain, usableW);
+        guard(lh(pt) * lines.length);
+        doc.text(lines, mx, y);
+        y += lh(pt) * lines.length;
+      };
+
+      for (const line of fullDocument.split("\n")) {
+        if (line.startsWith("# ")) {
+          y += 3;
+          write(line.slice(2), 18, "bold");
+          y += 4;
+        } else if (line.startsWith("## ")) {
+          y += 5;
+          write(line.slice(3), 13, "bold");
+          y += 2;
+        } else if (line.startsWith("### ")) {
+          y += 4;
+          write(line.slice(4), 11, "bold");
+          y += 1;
+        } else if (line.startsWith("---")) {
+          y += 3;
+          guard(2);
+          doc.setDrawColor(180, 180, 180);
+          doc.line(mx, y, W - mx, y);
+          y += 5;
+        } else if (line.startsWith("|")) {
+          const cells = line.split("|").filter((_, i, arr) => i > 0 && i < arr.length - 1);
+          if (cells.every((c) => /^[\s:-]+$/.test(c))) continue;
+          guard(6);
+          doc.setFontSize(9);
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(0, 0, 0);
+          const col0W = 38;
+          const restW = (usableW - col0W) / Math.max(cells.length - 1, 1);
+          let x = mx;
+          cells.forEach((cell, i) => {
+            const w = i === 0 ? col0W : restW;
+            const trimmed = cell.trim();
+            if (trimmed) doc.text(doc.splitTextToSize(trimmed, w - 2), x + 1, y);
+            x += w;
+          });
+          doc.setDrawColor(210, 210, 210);
+          doc.line(mx, y + 2.5, W - mx, y + 2.5);
+          y += 6;
+        } else if (line.startsWith("*") && line.endsWith("*") && line.length > 2) {
+          write(line.slice(1, -1), 9, "italic", [120, 120, 120]);
+          y += 0.5;
+        } else if (line.trim() === "") {
+          y += 2;
+        } else {
+          write(line, 10, "normal");
+          y += 1;
+        }
       }
 
-      pdf.save(buildFilename(data, "pdf"));
+      doc.save(buildFilename(data, "pdf"));
       setPdfError(false);
     } catch {
       setPdfError(true);
@@ -654,7 +675,7 @@ export default function NdaCreator() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-8">
-          <div ref={previewRef} className="max-w-2xl mx-auto bg-white rounded-lg border border-gray-200 shadow-sm p-8">
+          <div className="max-w-2xl mx-auto bg-white rounded-lg border border-gray-200 shadow-sm p-8">
             <DocumentPreview content={fullDocument} />
           </div>
         </div>
